@@ -3,3 +3,6 @@ build
 tags
 .editorconfig
 .DS_Store
+x64/
+.vs/
+MPC_quiz/Debug/

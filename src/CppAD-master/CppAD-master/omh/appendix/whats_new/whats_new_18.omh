@@ -1,0 +1,62 @@
+/* --------------------------------------------------------------------------
+CppAD: C++ Algorithmic Differentiation: Copyright (C) 2003-18 Bradley M. Bell
+
+CppAD is distributed under multiple licenses. This distribution is under
+the terms of the
+                    Eclipse Public License Version 1.0.
+
+A copy of this license is included in the COPYING file of this distribution.
+Please visit http://www.coin-or.org/CppAD/ for information on other licenses.
+-------------------------------------------------------------------------- */
+
+$begin whats_new_18$$
+$spell
+	CppAD
+	jac
+	hes
+	Jacobian
+	rcv
+$$
+
+$section Changes and Additions to CppAD During 2018$$
+
+$head 03-20$$
+Fix bug in $cref optimize$$ and $cref subgraph_sparsity$$
+when using C++11 $cref erf$$ function.
+
+$head 03-19$$
+Add more detail to the
+$cref/dynamic parameters/wish_list/Dynamic Parameters/$$
+whish list item.
+
+$head 03-04$$
+The $code example/abs_normal$$ directory was missing from the
+$cref/example/directory/Example Directory/$$ sub-directory list.
+This has been fixed.
+
+$head 03-02$$
+Add the $cref/pat/sparse_rcv/pat/$$ member function to
+the $code sparse_rcv$$ template class.
+
+$head 02-27$$
+Documentation was added to state that the $icode work$$ structure for
+$cref/sparse_jac/sparse_jac/work/$$ ( $cref/sparse_hes/sparse_hes/work/$$ )
+can be used a different $icode f$$ and a different $icode subset$$
+provided that Jacobian (Hessian) sparsity pattern for $icode f$$
+and the sparsity pattern in $icode subset$$ are the same.
+
+$head 02-26$$
+The routine $cref sparse2eigen$$, added on 02-20, only worked
+when the values in the matrix were integers.
+This bug has been fixed.
+
+$head 02-23$$
+The syntax for some of the $cref utility$$ files were missing the
+$code # include$$ command (or just the $code #$$ in the include command);
+e.g., see the
+$cref/syntax/set_union/Syntax/$$ for the $code set_union$$ utility.
+
+$head 02-20$$
+Add the utility function $cref sparse2eigen$$.
+
+$end

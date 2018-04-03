@@ -70,9 +70,14 @@ int main() {
 
   // MPC is initialized here!
   MPC mpc;
-
+#ifdef UWS_VCPKG
+  h.onMessage([&mpc](uWS::WebSocket<uWS::SERVER> *ws, char *data, size_t length,
+	  uWS::OpCode opCode) {
+#else
   h.onMessage([&mpc](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
-                     uWS::OpCode opCode) {
+	  uWS::OpCode opCode) {
+#endif
+
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -140,12 +145,26 @@ int main() {
           // NOTE: REMEMBER TO SET THIS TO 100 MILLISECONDS BEFORE
           // SUBMITTING.
           this_thread::sleep_for(chrono::milliseconds(100));
-          ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+#ifdef UWS_VCPKG
+		  // code fixed for latest uWebSockets
+		  ws->send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+#else
+		  // leave original code here
+		  ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+#endif
+          
         }
       } else {
         // Manual driving
         std::string msg = "42[\"manual\",{}]";
-        ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+
+#ifdef UWS_VCPKG
+		// code fixed for latest uWebSockets
+		ws->send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+#else
+		// leave original code here
+		ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+#endif
       }
     }
   });
@@ -164,18 +183,36 @@ int main() {
     }
   });
 
+#ifdef UWS_VCPKG
+  // code fixed for latest uWebSockets
+  h.onConnection([&h](uWS::WebSocket<uWS::SERVER> *ws, uWS::HttpRequest req) {
+#else
+  // leave original code here
   h.onConnection([&h](uWS::WebSocket<uWS::SERVER> ws, uWS::HttpRequest req) {
+#endif
     std::cout << "Connected!!!" << std::endl;
   });
 
-  h.onDisconnection([&h](uWS::WebSocket<uWS::SERVER> ws, int code,
-                         char *message, size_t length) {
-    ws.close();
+#ifdef UWS_VCPKG
+  // code fixed for latest uWebSockets
+  h.onDisconnection([&h](uWS::WebSocket<uWS::SERVER> *ws, int code, char *message, size_t length) {
+#else
+  // leave original code here
+  h.onDisconnection([&h](uWS::WebSocket<uWS::SERVER> ws, int code, char *message, size_t length) {
+#endif
+#ifdef UWS_VCPKG
+	  // code fixed for latest uWebSockets
+	  ws->close();
+#else
+	  // leave original code here
+	  ws.close();
+#endif
     std::cout << "Disconnected" << std::endl;
   });
 
   int port = 4567;
-  if (h.listen(port)) {
+  if (h.listen("127.0.0.1", port))
+  {
     std::cout << "Listening to port " << port << std::endl;
   } else {
     std::cerr << "Failed to listen to port" << std::endl;
