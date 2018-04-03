@@ -97,14 +97,76 @@ int main() {
           double psi = j[1]["psi"];
           double v = j[1]["speed"];
 
+
+		  vector<double> ptsx_car = {};
+		  vector<double> ptsy_car = {};
+
+		  //calculate in car reference frame
+		  for (int i = 0; i < ptsx.size(); i++)
+		  {
+			  double px_car = ptsx[i] - px;
+			  double py_car = ptsy[i] - py;
+
+			  double px_rot_car = (px_car * cos(0 - psi)) - (py_car *sin(0 - psi));
+			  double py_rot_car = (px_car * sin(0 - psi)) + (py_car *cos(0 - psi));
+
+			  ptsx_car.push_back(px_rot_car);
+			  ptsy_car.push_back(py_rot_car);
+
+		  }
+
           /*
           * TODO: Calculate steering angle and throttle using MPC.
           *
           * Both are in between [-1, 1].
           *
           */
+
+
+		  //convert to Eigen::VectorXd
+
+		  Eigen::VectorXd ptsx_eigen(ptsx_car.size());
+		  Eigen::VectorXd ptsy_eigen(ptsx_car.size());
+
+		  for (int i = 0; i < ptsx_car.size(); i++)
+		  {
+			  ptsx_eigen[i] = ptsx_car[i];
+			  ptsy_eigen[i] = ptsy_car[i];
+		  }
+
+
+		  //fit a polynomial to the car reference framed points
+
+		  Eigen::VectorXd coeffs = polyfit(ptsx_eigen, ptsy_eigen, 3);
+
+		  std::cout << "x: " << ptsx_eigen << std::endl;
+		  std::cout << "y: " << ptsy_eigen << std::endl;
+		  std::cout << "coeffs: " << coeffs << std::endl;
+		  
+
+		  //calcualate errors
+		  //double cte = polyeval(coeffs, px) - py;
+		  double cte = polyeval(coeffs, 0); //commented above line is reduced to this because we centered around car frame
+		  //double epsi = psi - atan(coeffs[1] + coeffs[2] * px); //derivative of the fit line
+		  double epsi = 0 - atan(coeffs[1]); ////commented above line is reduced to this because we centered around car frame (px = 0, psi = 0)
+
+		  //assemble the state
+		  Eigen::VectorXd state(6);
+		  //state << px, py, psi, v, cte, epsi;
+		  state << 0, 0, 0, v, cte, epsi; //simplify due to frame of reference change
+
+		  //Find the optimal values
+
+		  vector<double> vars = mpc.Solve(state, coeffs);
+
+
           double steer_value;
           double throttle_value;
+
+
+
+		  steer_value = vars[0];
+		  throttle_value = vars[1];
 
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
@@ -119,6 +181,10 @@ int main() {
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Green line
 
+		  mpc_x_vals = { 1,2,3,4 }; 
+		  mpc_y_vals = { 0, 0, 0, 0 };
+
+
           msgJson["mpc_x"] = mpc_x_vals;
           msgJson["mpc_y"] = mpc_y_vals;
 
@@ -128,6 +194,9 @@ int main() {
 
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Yellow line
+
+		  next_x_vals = ptsx_car;
+		  next_y_vals = ptsy_car;
 
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
