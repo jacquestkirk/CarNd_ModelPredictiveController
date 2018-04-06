@@ -150,6 +150,9 @@ int main() {
 		  //double epsi = psi - atan(coeffs[1] + coeffs[2] * px); //derivative of the fit line
 		  double epsi = 0 - atan(coeffs[1]); ////commented above line is reduced to this because we centered around car frame (px = 0, psi = 0)
 
+		  //double steer_value = j[1]["steering angle"];
+		  //double throttle_vaue = j[1]["throttle"];
+
 		  //assemble the state
 		  Eigen::VectorXd state(6);
 		  //state << px, py, psi, v, cte, epsi;
@@ -165,7 +168,7 @@ int main() {
 
 
 
-		  steer_value = vars[0];
+		  steer_value = -vars[0]/deg2rad(25);  //negative sign beacause simulator steers clockwise
 		  throttle_value = vars[1];
 
           json msgJson;
@@ -181,8 +184,11 @@ int main() {
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Green line
 
-		  mpc_x_vals = { 1,2,3,4 }; 
-		  mpc_y_vals = { 0, 0, 0, 0 };
+		  size_t N = 10;
+
+
+		  mpc_x_vals = mpc.GetxPts(); 
+		  mpc_y_vals = mpc.GetYPts();
 
 
           msgJson["mpc_x"] = mpc_x_vals;

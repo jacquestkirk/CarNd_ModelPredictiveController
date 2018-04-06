@@ -7,9 +7,9 @@ using CppAD::AD;
 
 // TODO: Set the timestep length and duration
 size_t N = 10;
-double dt = .5;
+double dt = .1;
 
-double ref_v = 10;
+double ref_v = 3;
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -138,10 +138,22 @@ class FG_eval {
 MPC::MPC() {}
 MPC::~MPC() {}
 
+
+vector<double> xVals;
+vector<double> yVals;
+
 vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   bool ok = true;
   size_t i;
   typedef CPPAD_TESTVECTOR(double) Dvector;
+
+  double x = state[0];
+  double y = state[1];
+  double psi = state[2];
+  double v = state[3];
+  double cte = state[4];
+  double epsi = state[5];
+
 
   // TODO: Set the number of model variables (includes both states and inputs).
   // For example: If the state is a 4 element vector, the actuators is a 2
@@ -150,7 +162,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // 4 * 10 + 2 * 9
   size_t n_vars = N * 6 + (N - 1) * 2;;
   // Set the number of constraints
-  size_t n_constraints = 0;
+  size_t n_constraints = N * 6;
 
   // Initial value of the independent variables.
   // SHOULD BE 0 besides initial state.
@@ -158,6 +170,14 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   for (int i = 0; i < n_vars; i++) {
     vars[i] = 0;
   }
+
+  vars[x_start] = x;
+  vars[y_start] = y;
+  vars[psi_start] = psi;
+  vars[v_start] = v;
+  vars[cte_start] = cte;
+  vars[epsi_start] = epsi;
+
 
   Dvector vars_lowerbound(n_vars);
   Dvector vars_upperbound(n_vars);
@@ -194,6 +214,24 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
     constraints_upperbound[i] = 0;
   }
 
+  constraints_lowerbound[x_start] = x;
+  constraints_lowerbound[y_start] = y;
+  constraints_lowerbound[psi_start] = psi;
+  constraints_lowerbound[v_start] = v;
+  constraints_lowerbound[cte_start] = cte;
+  constraints_lowerbound[epsi_start] = epsi;
+
+  constraints_upperbound[x_start] = x;
+  constraints_upperbound[y_start] = y;
+  constraints_upperbound[psi_start] = psi;
+  constraints_upperbound[v_start] = v;
+  constraints_upperbound[cte_start] = cte;
+  constraints_upperbound[epsi_start] = epsi;
+
+  //std::cout << "UpperBound " << constraints_upperbound << std::endl;
+  //std::cout << "LowerBound " << constraints_lowerbound << std::endl;
+
+
   // object that computes objective and constraints
   FG_eval fg_eval(coeffs);
 
@@ -203,7 +241,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // options for IPOPT solver
   std::string options;
   // Uncomment this if you'd like more print information
-  options += "Integer print_level  0\n";
+  //options += "Integer print_level  0\n";
   // NOTE: Setting sparse to true allows the solver to take advantage
   // of sparse routines, this makes the computation MUCH FASTER. If you
   // can uncomment 1 of these and see if it makes a difference or not but
@@ -213,7 +251,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   options += "Sparse  true        reverse\n";
   // NOTE: Currently the solver has a maximum time limit of 0.5 seconds.
   // Change this as you see fit.
-  options += "Numeric max_cpu_time          0.5\n";
+  //options += "Numeric max_cpu_time          0.5\n";
 
   // place to return solution
   CppAD::ipopt::solve_result<Dvector> solution;
@@ -230,10 +268,33 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   auto cost = solution.obj_value;
   std::cout << "Cost " << cost << std::endl;
 
+
+  //populate x and y points
+
+  xVals = {};
+  yVals = {};
+  for (int i = 0; i < N; i++)
+  {
+	  xVals.push_back(solution.x[x_start+i]);
+	  yVals.push_back(solution.x[y_start + i]);
+  }
+
   // TODO: Return the first actuator values. The variables can be accessed with
   // `solution.x[i]`.
   //
   // {...} is shorthand for creating a vector, so auto x1 = {1.0,2.0}
   // creates a 2 element double vector.
   return { solution.x[delta_start], solution.x[a_start] };
+}
+
+vector<double> MPC::GetxPts()
+{
+
+	return xVals;
+
+}
+vector<double> MPC::GetYPts()
+{
+	return  yVals;
+
 }
