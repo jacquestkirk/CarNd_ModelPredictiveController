@@ -6,3 +6,5 @@ tags
 x64/
 .vs/
 MPC_quiz/Debug/
+Ipopt-3.12.7/
+enc_temp_folder/
