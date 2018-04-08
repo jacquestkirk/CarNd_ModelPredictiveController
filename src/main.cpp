@@ -110,11 +110,15 @@ int main() {
 		  //calculate the state of the car after a delay dt
 		  const double Lf = 2.67;
 
-		  double x_end =  (px + v * cos(psi) * delay);
-		  double y_end = (py + v * sin(psi) * delay);
-		  double psi_end = (psi + v * delta / Lf * delay);
-		  double v_end = (v + a * delay);
+		  double x_end = px;//(px + v * cos(psi) * delay);
+		  double y_end = py;//(py + v * sin(psi) * delay);
+		  double psi_end = psi;//(psi + v * delta / Lf * delay);
+		  double v_end = v;//(v + a * delay);
 
+		  cout << "x_end"<<x_end << endl;
+		  cout << "y_end" << y_end << endl;
+		  cout << "psi_end" << psi_end << endl;
+		  cout << "v_end" << v_end << endl;
 
 
 		  vector<double> ptsx_car = {};
@@ -175,7 +179,15 @@ int main() {
 		  //assemble the state
 		  Eigen::VectorXd state(6);
 		  //state << px, py, psi, v, cte, epsi;
-		  state << 0, 0, 0, v_end, cte, epsi; //simplify due to frame of reference change
+		  double x_latency = v*delay;//(px + v * cos(psi) * delay);
+		  double y_latency = 0;//(py + v * sin(psi) * delay);
+		  double psi_latency = v * delta / Lf * delay;//(psi + v * delta / Lf * delay);
+		  double v_latency = (v + a * delay);
+		  double cte_latency = cte + v * sin(epsi) * delay;
+		  double epsi_latency = epsi + v * delta / Lf * delay;
+
+		  state << x_latency, y_latency, psi_latency, v_latency, cte_latency, epsi_latency; //simplify due to frame of reference change
+		  //state << 0, 0, 0, v_end, cte, epsi; //simplify due to frame of reference change
 
 		  //Find the optimal values
 
