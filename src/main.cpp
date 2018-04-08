@@ -67,14 +67,17 @@ Eigen::VectorXd polyfit(Eigen::VectorXd xvals, Eigen::VectorXd yvals,
 
 int main() {
   uWS::Hub h;
+  double delay = 0;
+  std::chrono::steady_clock::time_point timeLastRxSamp;
+  bool validLastSample = false;
 
   // MPC is initialized here!
   MPC mpc;
 #ifdef UWS_VCPKG
-  h.onMessage([&mpc](uWS::WebSocket<uWS::SERVER> *ws, char *data, size_t length,
+  h.onMessage([&mpc, &delay, &timeLastRxSamp, &validLastSample](uWS::WebSocket<uWS::SERVER> *ws, char *data, size_t length,
 	  uWS::OpCode opCode) {
 #else
-  h.onMessage([&mpc](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  h.onMessage([&mpc, &delay, &timeLastRxSamp, &validLastSample](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
 	  uWS::OpCode opCode) {
 #endif
 
@@ -96,19 +99,35 @@ int main() {
           double py = j[1]["y"];
           double psi = j[1]["psi"];
           double v = j[1]["speed"];
+		  double old_steer = j[1]["steering_angle"];
+		  double a = j[1]["throttle"];
+		  double delta = -old_steer;
+
+		  //calculate average dt over the last couple of samples
+		  std::chrono::steady_clock::time_point timeRxSamp = std::chrono::steady_clock::now();
+		  
+
+		  //calculate the state of the car after a delay dt
+		  const double Lf = 2.67;
+
+		  double x_end =  (px + v * cos(psi) * delay);
+		  double y_end = (py + v * sin(psi) * delay);
+		  double psi_end = (psi + v * delta / Lf * delay);
+		  double v_end = (v + a * delay);
+
 
 
 		  vector<double> ptsx_car = {};
 		  vector<double> ptsy_car = {};
 
 		  //calculate in car reference frame
-		  for (int i = 0; i < ptsx.size(); i++)
+		  for (int i = 0; i < (int)ptsx.size(); i++)
 		  {
-			  double px_car = ptsx[i] - px;
-			  double py_car = ptsy[i] - py;
+			  double px_car = ptsx[i] - x_end;
+			  double py_car = ptsy[i] - y_end;
 
-			  double px_rot_car = (px_car * cos(0 - psi)) - (py_car *sin(0 - psi));
-			  double py_rot_car = (px_car * sin(0 - psi)) + (py_car *cos(0 - psi));
+			  double px_rot_car = (px_car * cos(- psi_end)) - (py_car *sin(- psi_end));
+			  double py_rot_car = (px_car * sin(- psi_end)) + (py_car *cos(- psi_end));
 
 			  ptsx_car.push_back(px_rot_car);
 			  ptsy_car.push_back(py_rot_car);
@@ -128,7 +147,7 @@ int main() {
 		  Eigen::VectorXd ptsx_eigen(ptsx_car.size());
 		  Eigen::VectorXd ptsy_eigen(ptsx_car.size());
 
-		  for (int i = 0; i < ptsx_car.size(); i++)
+		  for (int i = 0; i < (int)ptsx_car.size(); i++)
 		  {
 			  ptsx_eigen[i] = ptsx_car[i];
 			  ptsy_eigen[i] = ptsy_car[i];
@@ -139,15 +158,15 @@ int main() {
 
 		  Eigen::VectorXd coeffs = polyfit(ptsx_eigen, ptsy_eigen, 3);
 
-		  std::cout << "x: " << ptsx_eigen << std::endl;
-		  std::cout << "y: " << ptsy_eigen << std::endl;
-		  std::cout << "coeffs: " << coeffs << std::endl;
+		  //std::cout << "x: " << ptsx_eigen << std::endl;
+		  //std::cout << "y: " << ptsy_eigen << std::endl;
+		  //std::cout << "coeffs: " << coeffs << std::endl;
 		  
 
 		  //calcualate errors
 		  //double cte = polyeval(coeffs, px) - py;
 		  double cte = polyeval(coeffs, 0); //commented above line is reduced to this because we centered around car frame
-		  //double epsi = psi - atan(coeffs[1] + coeffs[2] * px); //derivative of the fit line
+		  //double epsi = psi - atan(coeffs[1] + coeffs[2] * px + coeffs[3] *px *px); //derivative of the fit line
 		  double epsi = 0 - atan(coeffs[1]); ////commented above line is reduced to this because we centered around car frame (px = 0, psi = 0)
 
 		  //double steer_value = j[1]["steering angle"];
@@ -156,7 +175,7 @@ int main() {
 		  //assemble the state
 		  Eigen::VectorXd state(6);
 		  //state << px, py, psi, v, cte, epsi;
-		  state << 0, 0, 0, v, cte, epsi; //simplify due to frame of reference change
+		  state << 0, 0, 0, v_end, cte, epsi; //simplify due to frame of reference change
 
 		  //Find the optimal values
 
@@ -168,7 +187,7 @@ int main() {
 
 
 
-		  steer_value = -vars[0]/deg2rad(25);  //negative sign beacause simulator steers clockwise
+		  steer_value =  -vars[0]/deg2rad(25);  //negative sign beacause simulator steers clockwise
 		  throttle_value = vars[1];
 
           json msgJson;
@@ -183,9 +202,6 @@ int main() {
 
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Green line
-
-		  size_t N = 10;
-
 
 		  mpc_x_vals = mpc.GetxPts(); 
 		  mpc_y_vals = mpc.GetYPts();
@@ -209,6 +225,8 @@ int main() {
 
 
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
+		  
+
           std::cout << msg << std::endl;
           // Latency
           // The purpose is to mimic real driving conditions where
@@ -227,6 +245,24 @@ int main() {
 		  // leave original code here
 		  ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
 #endif
+		  std::chrono::steady_clock::time_point timeTxCommands = std::chrono::steady_clock::now();
+		  
+		  double dtCommand_sec = (double)std::chrono::duration_cast<std::chrono::microseconds >(timeTxCommands - timeRxSamp).count()/1000000;
+		  double dtSamples_sec;
+		  if (validLastSample)
+		  {
+			  dtSamples_sec = (double)std::chrono::duration_cast<std::chrono::microseconds>(timeRxSamp - timeLastRxSamp).count() / 1000000;
+		  }
+		  else
+		  {
+			  dtSamples_sec = 0;
+		  }
+		  timeLastRxSamp = timeRxSamp;
+		  validLastSample = true;
+		  std::cout << "delay: " << dtCommand_sec << std::endl;
+		  std::cout << "time between samples: " << dtSamples_sec << std::endl;
+
+
           
         }
       } else {

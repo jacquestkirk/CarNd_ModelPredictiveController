@@ -6,8 +6,8 @@
 using CppAD::AD;
 
 // TODO: Set the timestep length and duration
-size_t N = 10;
-double dt = .1;
+size_t N = 8;
+double dt = .2;
 
 double ref_v = 30;
 
@@ -62,21 +62,21 @@ class FG_eval {
 
 
 		  for (int t = 0; t < N; t++) {
-			  fg[0] +=100* CppAD::pow(vars[cte_start + t], 2);
-			  fg[0] += CppAD::pow(vars[epsi_start + t], 2);
+			  fg[0] +=1000* CppAD::pow(vars[cte_start + t], 2);
+			  fg[0] += 500*CppAD::pow(vars[epsi_start + t], 2);
 			  fg[0] += CppAD::pow(vars[v_start + t] - ref_v, 2);
 		  }
 
 		  // Minimize the use of actuators.
 		  for (int t = 0; t < N - 1; t++) {
-			  fg[0] += CppAD::pow(vars[delta_start + t], 2);
-			  fg[0] += CppAD::pow(vars[a_start + t], 2);
+			  fg[0] += 250 * CppAD::pow(vars[delta_start + t], 2);
+			  fg[0] += 10*CppAD::pow(vars[a_start + t], 2);
 		  }
 
 		  // Minimize the value gap between sequential actuations.
 		  for (int t = 0; t < N - 2; t++) {
-			  fg[0] += 100*CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
-			  fg[0] += CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
+			  fg[0] += 500*CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
+			  fg[0] += 100*CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
 		  }
 
 		  //
@@ -240,6 +240,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   //
   // options for IPOPT solver
   std::string options;
+#ifdef UWS_VCPKG
   // Uncomment this if you'd like more print information
   //options += "Integer print_level  0\n";
   // NOTE: Setting sparse to true allows the solver to take advantage
@@ -252,6 +253,20 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // NOTE: Currently the solver has a maximum time limit of 0.5 seconds.
   // Change this as you see fit.
   //options += "Numeric max_cpu_time          0.5\n";
+#else
+  // Uncomment this if you'd like more print information
+  options += "Integer print_level  0\n";
+  // NOTE: Setting sparse to true allows the solver to take advantage
+  // of sparse routines, this makes the computation MUCH FASTER. If you
+  // can uncomment 1 of these and see if it makes a difference or not but
+  // if you uncomment both the computation time should go up in orders of
+  // magnitude.
+  options += "Sparse  true        forward\n";
+  options += "Sparse  true        reverse\n";
+  // NOTE: Currently the solver has a maximum time limit of 0.5 seconds.
+  // Change this as you see fit.
+  options += "Numeric max_cpu_time          0.5\n";
+#endif
 
   // place to return solution
   CppAD::ipopt::solve_result<Dvector> solution;
