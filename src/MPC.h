@@ -18,6 +18,7 @@ class MPC {
 
   vector<double> GetxPts();
   vector<double> GetYPts();
+  void SetDt(float newDt);
 };
 
 #endif /* MPC_H */

@@ -65,19 +65,82 @@ Eigen::VectorXd polyfit(Eigen::VectorXd xvals, Eigen::VectorXd yvals,
   return result;
 }
 
+
+
+class TimeTracker
+{
+public:
+	std::chrono::steady_clock::time_point lastTime;
+	std::chrono::steady_clock::time_point currentTime;
+	double elapsedTime_ms;
+
+	double averageElapsedTime_ms=0;
+	int count;
+	int max_count;
+	bool validLastSample;
+	bool validFirstSample;
+
+	TimeTracker(int maxCount)
+	{
+		max_count = maxCount;
+		count = 0;
+		validLastSample = false;
+		validFirstSample = false;
+	}
+
+	void currentTimeToLastTime()
+	{
+		lastTime = currentTime;
+		validLastSample = true;
+	}
+	void getLastTime()
+	{
+		lastTime = std::chrono::steady_clock::now();
+		validLastSample = true;
+	}
+	void getCurrentTime()
+	{
+		validFirstSample = true;
+		currentTime = std::chrono::steady_clock::now();
+	}
+	void FindElapsedTime_ms()
+	{
+		if (validFirstSample && validLastSample)
+		{
+			elapsedTime_ms = (double)std::chrono::duration_cast<std::chrono::microseconds>(currentTime - lastTime).count() / 1000000;
+
+			addToAverage(elapsedTime_ms);
+		}
+	}
+
+	
+
+	void addToAverage(double newVal)
+	{
+		count += 1;
+
+		if (count > max_count)
+		{
+			count = max_count;
+		}
+
+		averageElapsedTime_ms = averageElapsedTime_ms - averageElapsedTime_ms / count + newVal / count;
+	}
+};
+
 int main() {
   uWS::Hub h;
-  double delay = 0;
-  std::chrono::steady_clock::time_point timeLastRxSamp;
-  bool validLastSample = false;
 
+  TimeTracker latencyTracker = TimeTracker(10);
+  TimeTracker dtTracker = TimeTracker(10);
+  
   // MPC is initialized here!
   MPC mpc;
 #ifdef UWS_VCPKG
-  h.onMessage([&mpc, &delay, &timeLastRxSamp, &validLastSample](uWS::WebSocket<uWS::SERVER> *ws, char *data, size_t length,
+  h.onMessage([&mpc, &latencyTracker, &dtTracker](uWS::WebSocket<uWS::SERVER> *ws, char *data, size_t length,
 	  uWS::OpCode opCode) {
 #else
-  h.onMessage([&mpc, &delay, &timeLastRxSamp, &validLastSample](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  h.onMessage([&mpc, &latencyTracker, &dtTracker](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
 	  uWS::OpCode opCode) {
 #endif
 
@@ -85,7 +148,7 @@ int main() {
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
     string sdata = string(data).substr(0, length);
-    cout << sdata << endl;
+    //cout << sdata << endl;
     if (sdata.size() > 2 && sdata[0] == '4' && sdata[1] == '2') {
       string s = hasData(sdata);
       if (s != "") {
@@ -104,8 +167,7 @@ int main() {
 		  double delta = -old_steer;
 
 		  //calculate average dt over the last couple of samples
-		  std::chrono::steady_clock::time_point timeRxSamp = std::chrono::steady_clock::now();
-		  
+		  latencyTracker.getLastTime();
 
 		  //calculate the state of the car after a delay dt
 		  const double Lf = 2.67;
@@ -115,10 +177,10 @@ int main() {
 		  double psi_end = psi;//(psi + v * delta / Lf * delay);
 		  double v_end = v;//(v + a * delay);
 
-		  cout << "x_end"<<x_end << endl;
-		  cout << "y_end" << y_end << endl;
-		  cout << "psi_end" << psi_end << endl;
-		  cout << "v_end" << v_end << endl;
+		  //cout << "x_end"<<x_end << endl;
+		  //cout << "y_end" << y_end << endl;
+		  //cout << "psi_end" << psi_end << endl;
+		  //cout << "v_end" << v_end << endl;
 
 
 		  vector<double> ptsx_car = {};
@@ -179,6 +241,18 @@ int main() {
 		  //assemble the state
 		  Eigen::VectorXd state(6);
 		  //state << px, py, psi, v, cte, epsi;
+		  //compensate for delay
+
+		  double delay;
+		  if (latencyTracker.validFirstSample)
+		  {
+			  delay = latencyTracker.averageElapsedTime_ms;
+		  }
+		  else
+		  {
+			  delay = 0;
+		  }
+
 		  double x_latency = v*delay;//(px + v * cos(psi) * delay);
 		  double y_latency = 0;//(py + v * sin(psi) * delay);
 		  double psi_latency = v * delta / Lf * delay;//(psi + v * delta / Lf * delay);
@@ -190,6 +264,7 @@ int main() {
 		  //state << 0, 0, 0, v_end, cte, epsi; //simplify due to frame of reference change
 
 		  //Find the optimal values
+		  //mpc.SetDt(dtTracker.averageElapsedTime_ms);
 
 		  vector<double> vars = mpc.Solve(state, coeffs);
 
@@ -229,8 +304,17 @@ int main() {
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Yellow line
 
-		  next_x_vals = ptsx_car;
-		  next_y_vals = ptsy_car;
+		  double x_step = 2.5;
+		  int num_points = 25;
+
+		  for (int i = 1; i < num_points; i++) {
+			  double x_val = x_step * i; 
+			  next_x_vals.push_back(x_val);
+			  next_y_vals.push_back(polyeval(coeffs, x_val));
+		  }
+
+		  //next_x_vals = ptsx_car;
+		  //next_y_vals = ptsy_car;
 
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
@@ -239,7 +323,7 @@ int main() {
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
 		  
 
-          std::cout << msg << std::endl;
+          //std::cout << msg << std::endl;
           // Latency
           // The purpose is to mimic real driving conditions where
           // the car does actuate the commands instantly.
@@ -257,22 +341,39 @@ int main() {
 		  // leave original code here
 		  ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
 #endif
-		  std::chrono::steady_clock::time_point timeTxCommands = std::chrono::steady_clock::now();
-		  
-		  double dtCommand_sec = (double)std::chrono::duration_cast<std::chrono::microseconds >(timeTxCommands - timeRxSamp).count()/1000000;
+		  latencyTracker.getCurrentTime();
+		  latencyTracker.FindElapsedTime_ms();
+		  double dtCommand_sec = latencyTracker.averageElapsedTime_ms;
+
+
 		  double dtSamples_sec;
-		  if (validLastSample)
+
+		  if(dtTracker.validLastSample)
 		  {
-			  dtSamples_sec = (double)std::chrono::duration_cast<std::chrono::microseconds>(timeRxSamp - timeLastRxSamp).count() / 1000000;
+			  dtTracker.FindElapsedTime_ms();
+			  dtSamples_sec = dtTracker.averageElapsedTime_ms;
+
+			  dtTracker.currentTimeToLastTime();
+			  dtTracker.getCurrentTime();
+		  }
+		  else if(dtTracker.validFirstSample)
+		  {
+			  dtSamples_sec = 0.1;
+
+			  dtTracker.currentTimeToLastTime();
+			  dtTracker.getCurrentTime();
+
 		  }
 		  else
 		  {
-			  dtSamples_sec = 0;
+			  dtSamples_sec = 0.1;
+			  dtTracker.getCurrentTime();
 		  }
-		  timeLastRxSamp = timeRxSamp;
-		  validLastSample = true;
-		  std::cout << "delay: " << dtCommand_sec << std::endl;
+		  
+
 		  std::cout << "time between samples: " << dtSamples_sec << std::endl;
+		  std::cout << "delay: " << dtCommand_sec << std::endl;
+
 
 
           

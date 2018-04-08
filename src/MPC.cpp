@@ -62,21 +62,26 @@ class FG_eval {
 
 
 		  for (int t = 0; t < N; t++) {
-			  fg[0] +=1000* CppAD::pow(vars[cte_start + t], 2);
-			  fg[0] += 500*CppAD::pow(vars[epsi_start + t], 2);
-			  fg[0] += CppAD::pow(vars[v_start + t] - ref_v, 2);
+
+			  double scaling = 1;// (N - t); //scaling to weight closer points more heavily
+
+			  fg[0] += scaling * 1000* CppAD::pow(vars[cte_start + t], 4);
+			  fg[0] += scaling * 500*CppAD::pow(vars[epsi_start + t], 2);
+			  fg[0] += scaling * CppAD::pow(vars[v_start + t] - ref_v, 2);
 		  }
 
 		  // Minimize the use of actuators.
 		  for (int t = 0; t < N - 1; t++) {
-			  fg[0] += 250 * CppAD::pow(vars[delta_start + t], 2);
-			  fg[0] += CppAD::pow(vars[a_start + t], 2);
+			  double scaling = 1;// (N - t); //scaling to weight closer points more heavily
+			  fg[0] += scaling * 250 * CppAD::pow(vars[delta_start + t], 2);
+			  fg[0] += scaling * CppAD::pow(vars[a_start + t], 2);
 		  }
 
 		  // Minimize the value gap between sequential actuations.
 		  for (int t = 0; t < N - 2; t++) {
-			  fg[0] += 500*CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
-			  fg[0] += 100*CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
+			  double scaling = 1;// (N - t); //scaling to weight closer points more heavily
+			  fg[0] += scaling * 500*CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
+			  fg[0] += scaling * 100*CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
 		  }
 
 		  //
@@ -142,6 +147,10 @@ MPC::~MPC() {}
 vector<double> xVals;
 vector<double> yVals;
 
+void MPC::SetDt(float newDt)
+{
+	dt = newDt;
+}
 vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   bool ok = true;
   size_t i;
