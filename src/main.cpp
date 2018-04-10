@@ -72,6 +72,7 @@ class TimeTracker
 public:
 	std::chrono::steady_clock::time_point lastTime;
 	std::chrono::steady_clock::time_point currentTime;
+	vector<double> times;
 	double elapsedTime_ms;
 
 	double averageElapsedTime_ms=0;
@@ -86,6 +87,7 @@ public:
 		count = 0;
 		validLastSample = false;
 		validFirstSample = false;
+		times = {};
 	}
 
 	void currentTimeToLastTime()
@@ -121,18 +123,27 @@ public:
 
 		if (count > max_count)
 		{
+			times.erase(times.begin());
 			count = max_count;
 		}
 
-		averageElapsedTime_ms = averageElapsedTime_ms - averageElapsedTime_ms / count + newVal / count;
+		times.push_back(newVal);
+
+		double sum = 0;
+		for (int i = 0; i < count; i++)
+		{
+			sum += times[i];
+		}
+
+		averageElapsedTime_ms = sum / count;
 	}
 };
 
 int main() {
   uWS::Hub h;
 
-  TimeTracker latencyTracker = TimeTracker(10);
-  TimeTracker dtTracker = TimeTracker(10);
+  TimeTracker latencyTracker = TimeTracker(5);
+  TimeTracker dtTracker = TimeTracker(5);
   
   // MPC is initialized here!
   MPC mpc;
