@@ -275,7 +275,7 @@ int main() {
 		  //state << 0, 0, 0, v_end, cte, epsi; //simplify due to frame of reference change
 
 		  //Find the optimal values
-		  //mpc.SetDt(dtTracker.averageElapsedTime_ms);
+		  mpc.SetDt(dtTracker.averageElapsedTime_ms);
 
 		  vector<double> vars = mpc.Solve(state, coeffs);
 
