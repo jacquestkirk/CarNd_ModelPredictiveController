@@ -1,3 +1,45 @@
+## Comments from Jason
+### The Model
+The model I used is exactly the same as the the model that was discussed in class. 
+
+      x_[t+1] = x[t] + v[t] * cos(psi[t]) * dt
+      y_[t+1] = y[t] + v[t] * sin(psi[t]) * dt
+      psi_[t+1] = psi[t] + v[t] / Lf * delta[t] * dt
+      v_[t+1] = v[t] + a[t] * dt
+      cte[t+1] = f(x[t]) - y[t] + v[t] * sin(epsi[t]) * dt
+      epsi[t+1] = psi[t] - psides[t] + v[t] * delta[t] / Lf * dt
+      
+where...
+- x_ = the x coordinate
+- y_ = the y coordinate
+- psi = the angle of the car
+- v_ = the velocity of the car
+- a = acceleration of the car
+- delta = steering angle of the car
+- cte = the locaiton error (distance between the polynomial and the new location)
+- epsi = error in angle
+
+### Timestep Length and Elapsed duration
+I started by choosing dt. Generally you would like to make estimations as fast as possible, but there is no point in making estimates faster than the sample rate of the telemetry data. Therefore I created a windowed average of past telemetry data sampling periods and use this as the dT used in oprimization. 
+
+N was set based on watching the video and letting the green line go out a reasonable distance. Too few points means you are not planning ahead for the future. A too long T will be planning too far in advance. Also, it will be harder to fit a cubic to a longer span of curvy road. Furthermore, planning too far breaks down the small angle assumption used for calculating CTE. 
+
+### Polynomial if fitted to the waypoints
+The waypoints are converted into the car's reference frame in lines 197- 210 of [main.cpp](https://github.com/jacquestkirk/CarNd_ModelPredictiveController/blob/master/src/main.cpp). 
+
+Then they were fit to a polynomial in line 236 of [main.cpp](https://github.com/jacquestkirk/CarNd_ModelPredictiveController/blob/master/src/main.cpp). 
+
+They are plotted as the yellow line in the [video](https://github.com/jacquestkirk/CarNd_ModelPredictiveController/blob/master/Lap.mp4).
+
+### Model Predictive control with Latency
+Latency was handled by: 
+- increasing dT (as described in the section titled "Timestep Length and Elapsed duration"
+- predicting the location of the car at the end of the latency based on the state equations. Described in "The Model", plugging the latency into dT. dT was measured by averaging the latency of the last 5 cycles. 
+
+### Simulation
+Try it yourself or watch the [video](https://github.com/jacquestkirk/CarNd_ModelPredictiveController/blob/master/Lap.mp4).
+
+
 # CarND-Controls-MPC
 Self-Driving Car Engineer Nanodegree Program
 
