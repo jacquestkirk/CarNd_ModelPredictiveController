@@ -274,7 +274,7 @@ int main() {
 
 
 
-		  steer_value =  -vars[0]/deg2rad(25);  //negative sign beacause simulator steers clockwise
+		  steer_value =  -vars[0]/deg2rad(25)/Lf;  //negative sign beacause simulator steers clockwise
 		  throttle_value = vars[1];
 
           json msgJson;
