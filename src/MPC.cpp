@@ -9,7 +9,7 @@ using CppAD::AD;
 size_t N = 10;
 double dt = .1;
 
-double ref_v = 200;
+double ref_v = 100;
 
 // This value assumes the model presented in the classroom is used.
 //
